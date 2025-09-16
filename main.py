@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
-from pymatreader import read_mat
+import scipy.io as sio
 from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_curve, roc_auc_score
@@ -20,7 +20,7 @@ def load_config(config_path: str) -> dict:
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
-
+# HSIDataLoader class (unchanged)
 class HSIDataLoader:
     """Handles loading and preprocessing of hyperspectral image datasets."""
     
@@ -40,8 +40,8 @@ class HSIDataLoader:
             raise ValueError(f"Unknown dataset: {dataset_name}")
         
         data_file, data_key, label_file, label_key = HSIDataLoader.DATASETS[dataset_name]
-        data = read_mat(f"{data_path}{data_file}")[data_key]
-        labels = read_mat(f"{data_path}{label_file}")[label_key]
+        data = sio.loadmat(f"{data_path}{data_file}")[data_key]
+        labels = sio.loadmat(f"{data_path}{label_file}")[label_key]
         return data, labels
 
     @staticmethod
