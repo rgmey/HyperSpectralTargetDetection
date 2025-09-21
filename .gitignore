@@ -1,0 +1,24 @@
+# ignore __pychache__ directory
+__pycache__/
+*.pyc
+test*.py
+.env
+.log
+.logs
+logs/
+pdfs/
+Questions.txt
+*.pdf
+*.ttf
+node_module/
+docs/
+*.pkl
+faiss_index
+vdb_cache/
+*.index
+old*
+HSI_Datasets/
+hsi_venv/
+models/
+*.hdf5
+*.keras
