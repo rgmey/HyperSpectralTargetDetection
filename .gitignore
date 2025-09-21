@@ -22,3 +22,4 @@ hsi_venv/
 models/
 *.hdf5
 *.keras
+plots/

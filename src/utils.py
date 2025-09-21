@@ -178,42 +178,60 @@ def evaluate_model(model, history, X_test, y_test, labels, data_patched, config)
     print(f"F1 Score: {f1score:.3f}")
     print(f"AUC: {auc:.3f}")
 
-    # plot_results(y_test, y_pred, history, labels, data_patched, config, model)
+    plot_results(y_test, y_pred, history, labels, data_patched, config, model)
 
 # -----------------------------
 # Plot
 # -----------------------------
 def plot_results(y_test, y_pred, history, labels, data_patched, config, model):
-    """Generate and display evaluation plots."""
+    # print(history.history.keys())
+    os.makedirs('../plots/', exist_ok=True) 
+
+    """Generate, save and display evaluation plots."""
     cm = confusion_matrix(y_test, np.round(y_pred))
     disp = ConfusionMatrixDisplay(confusion_matrix=cm)
     disp.plot()
-    plt.show()
+    # plt.show()
+    plt.savefig('../plots/CM_{}_{}.png'.format(config["dataset"], config['target_class_num']))
+    plt.close()  # close to free memory
 
     fpr, tpr, _ = roc_curve(y_test, y_pred)
     auc = roc_auc_score(y_test, y_pred)
+    plt.figure()  # create a fresh figure for each metric
     plt.plot(fpr, tpr, label=f"AUC = {auc:.3f}")
     plt.legend()
-    plt.show()
+    # plt.show()
+    plt.savefig('../plots/AUC_{}_{}.png'.format(config["dataset"], config['target_class_num']))
+    plt.close()  # close to free memory
 
     patched_reshaped = data_patched.reshape(
         data_patched.shape[0], config["window_size"], config["window_size"], config["num_components"], 1
     )
     y_pred_final = model.predict(patched_reshaped)
     result_2d = np.round(y_pred_final).reshape(labels.shape[0], labels.shape[1])
+    plt.figure()  # create a fresh figure for each metric
     plt.imshow(result_2d, cmap="gray")
-    plt.show()
+    # plt.show()
+    plt.savefig('../plots/PRED_{}_{}.png'.format(config["dataset"], config['target_class_num']))
+    plt.close()  # close to free memory
 
     for metric in ["accuracy", "loss"]:
+        plt.figure()  # create a fresh figure for each metric
+        # print(history.history[metric])
         plt.plot(history.history[metric], label=f"Training {metric}")
         plt.plot(history.history[f"val_{metric}"], label=f"Validation {metric}")
         plt.legend()
-        plt.title(metric)
-        plt.show()
+        plt.title(metric.upper())
+        # plt.show()
+        plt.savefig('../plots/{}_{}_{}.png'.format(metric.upper(), config["dataset"], config['target_class_num']))
+        plt.close()  # close to free memory
 
+    plt.figure()  # create a fresh figure for each metric
     plt.imshow(labels, cmap="gray")
     plt.title("Ground Truth")
-    plt.show()
+    # plt.show()
+    plt.savefig('../plots/GT_{}_{}.png'.format(config["dataset"], config['target_class_num']))
+    plt.close()  # close to free memory
 
 
 # -----------------------------
