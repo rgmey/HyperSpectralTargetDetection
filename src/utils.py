@@ -15,12 +15,13 @@ from sklearn.metrics import (
     roc_auc_score,
     precision_score,
     recall_score,
-    f1_score
+    f1_score,
+    classification_report
 )
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, Conv2D, Conv3D, Reshape, Flatten, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
-
+import pandas as pd
 
 def load_config(config_path: str) -> dict:
     """Load configuration from a YAML file."""
@@ -172,11 +173,14 @@ def evaluate_model(model, history, X_test, y_test, labels, data_patched, config)
     recall = recall_score(y_test, np.round(y_pred, 0))
     f1score = f1_score(y_test, np.round(y_pred, 0))
     auc = roc_auc_score(y_test, y_pred)
-
-    print(f"PRECISION: {precision:.3f}")
-    print(f"RECALL: {recall:.3f}")
-    print(f"F1 Score: {f1score:.3f}")
-    print(f"AUC: {auc:.3f}")
+    cls_report = classification_report(y_test, np.round(y_pred, 0), digits=4)
+    print(f"PRECISION: {precision:.4f}")
+    print(f"RECALL: {recall:.4f}")
+    print(f"F1 Score: {f1score:.4f}")
+    print(f"AUC: {auc:.4f}")
+    print(f"CLASSIFICATION REPORT:\n{cls_report}")
+    df = pd.DataFrame(classification_report(y_test, np.round(y_pred, 0), digits=4, output_dict=True)).transpose()
+    df.to_csv('../plots/df_cls_report_{}_{}.csv'.format(config["dataset"], config['target_class_num']))
 
     plot_results(y_test, y_pred, history, labels, data_patched, config, model)
 
@@ -198,7 +202,7 @@ def plot_results(y_test, y_pred, history, labels, data_patched, config, model):
     fpr, tpr, _ = roc_curve(y_test, y_pred)
     auc = roc_auc_score(y_test, y_pred)
     plt.figure()  # create a fresh figure for each metric
-    plt.plot(fpr, tpr, label=f"AUC = {auc:.3f}")
+    plt.plot(fpr, tpr, label=f"AUC = {auc:.4f}")
     plt.legend()
     # plt.show()
     plt.savefig('../plots/AUC_{}_{}.png'.format(config["dataset"], config['target_class_num']))
@@ -218,8 +222,8 @@ def plot_results(y_test, y_pred, history, labels, data_patched, config, model):
     for metric in ["accuracy", "loss"]:
         plt.figure()  # create a fresh figure for each metric
         # print(history.history[metric])
-        plt.plot(history.history[metric], label=f"Training {metric}")
-        plt.plot(history.history[f"val_{metric}"], label=f"Validation {metric}")
+        plt.plot(history.history[metric], label=f"Training {metric.upper()}")
+        plt.plot(history.history[f"val_{metric}"], label=f"Validation {metric.upper()}")
         plt.legend()
         plt.title(metric.upper())
         # plt.show()

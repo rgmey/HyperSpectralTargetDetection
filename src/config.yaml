@@ -1,5 +1,5 @@
 dataset: SAA  # Name of the hyperspectral dataset (options: 'SAA', 'IP', 'SA', 'PU', 'SD', 'HP')
-target_class_num: 12  # Target class number for binary classification (integer)
+target_class_num: 10  # Target class number for binary classification (integer)
 num_components: 3  # Number of PCA components to retain (integer, typically 3-10)
 window_size: 5  # Size of the patch window (must be odd, e.g., 3, 5, 7)
 test_ratio: 0.1  # Proportion of data for testing (float between 0 and 1)
