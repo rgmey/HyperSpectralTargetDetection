@@ -243,6 +243,8 @@ def evaluate_model(model, history, X_test, y_test, labels, data_patched, config,
     f1score = f1_score(y_test, np.round(y_pred, 0))
     auc = roc_auc_score(y_test, y_pred)
     cls_report = classification_report(y_test, np.round(y_pred, 0), digits=4)
+    print(f"\n--- Results: dataset={config['dataset']}  method={reduction_method}  "
+          f"target_class={config['target_class_num']} ---")
     print(f"PRECISION: {precision:.4f}")
     print(f"RECALL: {recall:.4f}")
     print(f"F1 Score: {f1score:.4f}")
@@ -318,6 +320,12 @@ def main():
 
     reduction_method = config.get("reduction_method", "pca")  # 'pca' (default), 'tsne', or 'umap'
 
+    run_label = (f"dataset={config['dataset']}  method={reduction_method}  "
+                 f"target_class={config['target_class_num']}")
+    print("=" * 70)
+    print(f"RUN START  |  {run_label}")
+    print("=" * 70)
+
     # Load + preprocess
     data, labels = HSIDataLoader.load_dataset(config["dataset"], config["data_path"])
     X_train, X_test, y_train, y_test, data_patched, reduction_time = HSIDataLoader.preprocess_data(
@@ -336,3 +344,7 @@ def main():
 
     # Evaluate
     evaluate_model(model, history, X_test, y_test, labels, data_patched, config, reduction_method)
+
+    print("=" * 70)
+    print(f"RUN COMPLETE  |  {run_label}")
+    print("=" * 70)
