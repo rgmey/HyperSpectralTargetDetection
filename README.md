@@ -64,7 +64,7 @@ All experiment settings are controlled through `src/config.yaml`:
 
 ```yaml
 dataset: SAA            # IP, SD, SAA, or HP
-target_class_num: 10    # class treated as the target (all others = background)
+target_class_num: 12    # class treated as the target (all others = background)
 reduction_method: pca   # pca, tsne, or umap
 num_components: 3       # number of components after reduction
 window_size: 5          # spatial patch size (must be odd)
