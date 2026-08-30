@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 
 # project data and outputs (paths used in config.yaml / utils.py)
+HSI_Datasets/
 .venv/
 models/
 *.keras
