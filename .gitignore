@@ -1,25 +1,10 @@
-# ignore __pychache__ directory
+# ignore __pycache__ directory
 __pycache__/
 *.pyc
-test*.py
-.env
-.log
-.logs
-logs/
-pdfs/
-Questions.txt
-*.pdf
-*.ttf
-node_module/
-docs/
-*.pkl
-faiss_index
-vdb_cache/
-*.index
-old*
+
+# project data and outputs (paths used in config.yaml / utils.py)
 HSI_Datasets/
-hsi_venv/
+.venv/
 models/
-*.hdf5
 *.keras
 plots/
