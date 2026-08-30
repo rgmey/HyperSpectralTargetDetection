@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import scipy.io as sio
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+import umap
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     confusion_matrix,
@@ -39,8 +41,6 @@ class HSIDataLoader:
 
     DATASETS = {
         "IP": ("Indian_pines_corrected.mat", "indian_pines_corrected", "Indian_pines_gt.mat", "indian_pines_gt"),
-        "SA": ("Salinas_corrected.mat", "salinas_corrected", "Salinas_gt.mat", "salinas_gt"),
-        "PU": ("PaviaU.mat", "paviaU", "PaviaU_gt.mat", "paviaU_gt"),
         "SD": ("sandiego_reflectance.mat", "b", "sandiego_targetmap.mat", "sandiego_targetmap"),
         "SAA": ("SalinasA.mat", "salinasA", "SalinasA_gt.mat", "salinasA_gt"),
         "HP": ("HyMap.mat", "self_test_refl_sub", "HyMap_GT.mat", "self_test_targetmap_sub"),
@@ -58,6 +58,58 @@ class HSIDataLoader:
         return data, labels
 
     @staticmethod
+    def reduce_dimensionality(
+        data_flat: np.ndarray,
+        method: str,
+        num_components: int,
+        seed_value: int,
+    ) -> tuple[np.ndarray, float]:
+        """Reduce spectral dimensionality using PCA, t-SNE, or UMAP.
+
+        All three methods are fit on the full flattened image (all pixels,
+        train + test together) and applied via fit_transform, matching the
+        original PCA behavior in this codebase. Note this differs from a
+        strict train-only-fit protocol (see README for details); t-SNE in
+        particular has no out-of-sample `.transform()`, so a train-only fit
+        would require a different evaluation setup entirely if you want to
+        avoid this.
+
+        Returns the reduced array and the wall-clock time (seconds) taken
+        by the reduction step, so reduction cost can be compared across
+        methods the way the accompanying paper reports it.
+        """
+        method = method.lower()
+        start_time = time.time()
+
+        if method == "pca":
+            reducer = PCA(n_components=num_components, whiten=True, random_state=seed_value)
+            data_reduced = reducer.fit_transform(data_flat)
+
+        elif method == "tsne":
+            # t-SNE has no .transform() for new/unseen points, so it must be
+            # fit_transform'd on the full array in one call. n_components > 3
+            # requires method="exact" in scikit-learn (the default
+            # barnes_hut backend only supports up to 3 output dimensions).
+            tsne_method = "barnes_hut" if num_components <= 3 else "exact"
+            reducer = TSNE(
+                n_components=num_components,
+                random_state=seed_value,
+                method=tsne_method,
+                init="pca",
+            )
+            data_reduced = reducer.fit_transform(data_flat)
+
+        elif method == "umap":
+            reducer = umap.UMAP(n_components=num_components, random_state=seed_value)
+            data_reduced = reducer.fit_transform(data_flat)
+
+        else:
+            raise ValueError(f"Unknown reduction method: {method!r}. Expected 'pca', 'tsne', or 'umap'.")
+
+        reduction_time = time.time() - start_time
+        return data_reduced, reduction_time
+
+    @staticmethod
     def preprocess_data(
         data: np.ndarray,
         labels: np.ndarray,
@@ -66,19 +118,36 @@ class HSIDataLoader:
         window_size: int,
         test_ratio: float,
         seed_value: int,
+        reduction_method: str = "pca",
     ) -> tuple:
-        """Preprocess data: PCA, patch extraction, and train-test split."""
+        """Preprocess data: dimensionality reduction, patch extraction, and train-test split."""
         labels_binary = np.where(labels == target_class_num, 1, 0)
         labels_binary_1d = labels_binary.reshape(-1)
+
+        num_target = int(labels_binary_1d.sum())
+        num_background = int(labels_binary_1d.size - num_target)
+        print(f"Class balance for target_class_num={target_class_num}: "
+              f"{num_target} target pixels, {num_background} background pixels")
+        if num_target == 0:
+            raise ValueError(
+                f"target_class_num={target_class_num} matches zero pixels in this dataset's "
+                f"label map. Check that this class number actually exists for the selected "
+                f"dataset (see the paper / README for the correct target class per dataset) "
+                f"before running further."
+            )
+
         data_flat = data.reshape(-1, data.shape[2])
-        pca = PCA(n_components=num_components, whiten=True)
-        data_pca = pca.fit_transform(data_flat)
-        data_pca_reshaped = data_pca.reshape(data.shape[0], data.shape[1], num_components)
-        data_patched = patch_data(data_pca_reshaped, window_size)
-        X_train, X_test, y_train, y_test = train_test_split(
-            data_patched, labels_binary_1d, test_size=test_ratio, random_state=seed_value
+        data_reduced, reduction_time = HSIDataLoader.reduce_dimensionality(
+            data_flat, reduction_method, num_components, seed_value
         )
-        return X_train, X_test, y_train, y_test, data_patched
+        print(f"[{reduction_method.upper()}] dimensionality reduction took {reduction_time:.2f}s")
+        data_reduced_reshaped = data_reduced.reshape(data.shape[0], data.shape[1], num_components)
+        data_patched = patch_data(data_reduced_reshaped, window_size)
+        X_train, X_test, y_train, y_test = train_test_split(
+            data_patched, labels_binary_1d, test_size=test_ratio, random_state=seed_value,
+            stratify=labels_binary_1d,
+        )
+        return X_train, X_test, y_train, y_test, data_patched, reduction_time
 
 
 # -----------------------------
@@ -140,8 +209,8 @@ def build_model(window_size: int, num_components: int, learning_rate: float, out
 # -----------------------------
 # Training
 # -----------------------------
-def train_model(config: dict, X_train, y_train, X_test, y_test):
-    """Train the model and return trained model + history."""
+def train_model(config: dict, X_train, y_train, X_test, y_test, reduction_method: str = "pca"):
+    """Train the model and return trained model, history, and training time."""
     model = build_model(config["window_size"], config["num_components"], config["learning_rate"])
     model.summary()
 
@@ -157,15 +226,15 @@ def train_model(config: dict, X_train, y_train, X_test, y_test):
     execution_time = time.time() - start_time
     print(f"Model training time: {execution_time:.2f} seconds")
 
-    os.makedirs('models/', exist_ok=True) 
-    model.save(config["model_name"].format(config["dataset"], config['target_class_num']))
-    return model, history
+    os.makedirs('../models/', exist_ok=True)
+    model.save("../models/TargetDetection_{}_{}_{}.keras".format(config["dataset"], reduction_method, config['target_class_num']))
+    return model, history, execution_time
 
 
 # -----------------------------
 # Evaluation
 # -----------------------------
-def evaluate_model(model, history, X_test, y_test, labels, data_patched, config):
+def evaluate_model(model, history, X_test, y_test, labels, data_patched, config, reduction_method: str = "pca"):
     """Evaluate model and plot metrics."""
     y_pred = model.predict(X_test)
 
@@ -179,15 +248,16 @@ def evaluate_model(model, history, X_test, y_test, labels, data_patched, config)
     print(f"F1 Score: {f1score:.4f}")
     print(f"AUC: {auc:.4f}")
     print(f"CLASSIFICATION REPORT:\n{cls_report}")
+    os.makedirs('../plots/', exist_ok=True)
     df = pd.DataFrame(classification_report(y_test, np.round(y_pred, 0), digits=4, output_dict=True)).transpose()
-    df.to_csv('../plots/df_cls_report_{}_{}.csv'.format(config["dataset"], config['target_class_num']))
+    df.to_csv('../plots/df_cls_report_{}_{}_{}.csv'.format(config["dataset"], reduction_method, config['target_class_num']))
 
-    plot_results(y_test, y_pred, history, labels, data_patched, config, model)
+    plot_results(y_test, y_pred, history, labels, data_patched, config, model, reduction_method)
 
 # -----------------------------
 # Plot
 # -----------------------------
-def plot_results(y_test, y_pred, history, labels, data_patched, config, model):
+def plot_results(y_test, y_pred, history, labels, data_patched, config, model, reduction_method: str = "pca"):
     # print(history.history.keys())
     os.makedirs('../plots/', exist_ok=True) 
 
@@ -196,7 +266,7 @@ def plot_results(y_test, y_pred, history, labels, data_patched, config, model):
     disp = ConfusionMatrixDisplay(confusion_matrix=cm)
     disp.plot()
     # plt.show()
-    plt.savefig('../plots/CM_{}_{}.png'.format(config["dataset"], config['target_class_num']))
+    plt.savefig('../plots/CM_{}_{}_{}.png'.format(config["dataset"], reduction_method, config['target_class_num']))
     plt.close()  # close to free memory
 
     fpr, tpr, _ = roc_curve(y_test, y_pred)
@@ -205,7 +275,7 @@ def plot_results(y_test, y_pred, history, labels, data_patched, config, model):
     plt.plot(fpr, tpr, label=f"AUC = {auc:.4f}")
     plt.legend()
     # plt.show()
-    plt.savefig('../plots/AUC_{}_{}.png'.format(config["dataset"], config['target_class_num']))
+    plt.savefig('../plots/AUC_{}_{}_{}.png'.format(config["dataset"], reduction_method, config['target_class_num']))
     plt.close()  # close to free memory
 
     patched_reshaped = data_patched.reshape(
@@ -216,7 +286,7 @@ def plot_results(y_test, y_pred, history, labels, data_patched, config, model):
     plt.figure()  # create a fresh figure for each metric
     plt.imshow(result_2d, cmap="gray")
     # plt.show()
-    plt.savefig('../plots/PRED_{}_{}.png'.format(config["dataset"], config['target_class_num']))
+    plt.savefig('../plots/PRED_{}_{}_{}.png'.format(config["dataset"], reduction_method, config['target_class_num']))
     plt.close()  # close to free memory
 
     for metric in ["accuracy", "loss"]:
@@ -227,7 +297,7 @@ def plot_results(y_test, y_pred, history, labels, data_patched, config, model):
         plt.legend()
         plt.title(metric.upper())
         # plt.show()
-        plt.savefig('../plots/{}_{}_{}.png'.format(metric.upper(), config["dataset"], config['target_class_num']))
+        plt.savefig('../plots/{}_{}_{}_{}.png'.format(metric.upper(), config["dataset"], reduction_method, config['target_class_num']))
         plt.close()  # close to free memory
 
     plt.figure()  # create a fresh figure for each metric
@@ -246,11 +316,14 @@ def main():
     np.random.seed(config["seed_value"])
     tf.random.set_seed(config["seed_value"])
 
+    reduction_method = config.get("reduction_method", "pca")  # 'pca' (default), 'tsne', or 'umap'
+
     # Load + preprocess
     data, labels = HSIDataLoader.load_dataset(config["dataset"], config["data_path"])
-    X_train, X_test, y_train, y_test, data_patched = HSIDataLoader.preprocess_data(
+    X_train, X_test, y_train, y_test, data_patched, reduction_time = HSIDataLoader.preprocess_data(
         data, labels, config["target_class_num"], config["num_components"],
         config["window_size"], config["test_ratio"], config["seed_value"],
+        reduction_method,
     )
 
     # Reshape for model input
@@ -258,7 +331,8 @@ def main():
     X_test = X_test.reshape(-1, config["window_size"], config["window_size"], config["num_components"], 1)
 
     # Train
-    model, history = train_model(config, X_train, y_train, X_test, y_test)
+    model, history, training_time = train_model(config, X_train, y_train, X_test, y_test, reduction_method)
+    print(f"Total time (reduction + training): {reduction_time + training_time:.2f}s")
 
     # Evaluate
-    evaluate_model(model, history, X_test, y_test, labels, data_patched, config)
+    evaluate_model(model, history, X_test, y_test, labels, data_patched, config, reduction_method)
