@@ -1,5 +1,5 @@
-dataset: SAA  # Name of the hyperspectral dataset (options: 'SAA', 'IP', 'SD', 'HP')
-target_class_num: 12  # Target class number for binary classification (integer)
+dataset: HP  # Name of the hyperspectral dataset (options: 'SAA', 'IP', 'SD', 'HP')
+target_class_num: 1  # Target class number for binary classification (integer)
 reduction_method: pca  # Dimensionality reduction method (options: 'pca', 'tsne', 'umap')
 num_components: 3  # Number of components to retain after dimensionality reduction (integer, typically 3-10)
 window_size: 5  # Size of the patch window (must be odd, e.g., 3, 5, 7)
