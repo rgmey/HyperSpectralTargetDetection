@@ -44,7 +44,18 @@ Configurable via `config.yaml`. Dataset specs and target class definitions (from
 | `HP`  | HyMap        | 150 × 150    | 126            | 2 (target vs. background)          | `1` *(binary map; confirm via class-balance check below)* |
 | `SAA` | Salinas-A    | 86 × 83      | 224            | 7                                  | `12`                                                      |
 
-Dataset `.mat` files are expected in `data_path` (see `config.yaml`); they are not included in this repository due to size and licensing.
+## Data
+
+Dataset `.mat` files are expected in `data_path` (see `config.yaml`); they are **not included in this repository** due to file size, and because these are third-party benchmark scenes redistributed by other research groups under their own terms.
+
+| Dataset | Source |
+| --- | --- |
+| Indian Pines | [GIC hyperspectral remote sensing scenes](https://www.ehu.eus/ccwintco/index.php/Hyperspectral_Remote_Sensing_Scenes) — download "corrected Indian Pines" + groundtruth |
+| Salinas-A | [GIC hyperspectral remote sensing scenes](https://www.ehu.eus/ccwintco/index.php/Hyperspectral_Remote_Sensing_Scenes) — Salinas-A is the 86×83 subscene listed on the same page |
+| San Diego | 80×80, 189-band crop, as used in the hyperspectral target detection literature. Not redistributed here; source your own copy matching these dimensions. |
+| HyMap | 150×150, 126-band scene. Not redistributed here; source your own copy matching these dimensions. |
+
+Place the downloaded `.mat` files in the `HSI_Datasets/` folder (one level up from `src/`, i.e. alongside `src/` and `requirements.txt`) — this is the default value of `data_path` in `config.yaml`. Filenames/keys must match what `preprocess_data` expects (see `src/utils.py`).
 
 **Before running a dataset/class combination for the first time**, check the console output on the first run: `preprocess_data` prints the target vs. background pixel count for the chosen `target_class_num`, and raises an error immediately if that class doesn't exist in the label map (rather than silently training on an empty or degenerate split). If you see a `ValueError` about zero target pixels, the class number for that dataset needs adjusting, the values above for `SD` and `HP` are inferred from the paper's "2 classes" description rather than stated explicitly, so double-check them against your own label files.
 
@@ -57,6 +68,8 @@ pip install -r requirements.txt
 cd src
 python run.py
 ```
+
+For an interactive, end-to-end walkthrough on a single dataset (Salinas-A) with inline visualizations — ROC curve, confusion matrix, predicted target map, and a PCA vs. t-SNE vs. UMAP comparison — see [`src/demo.ipynb`](src/demo.ipynb). Like `run.py`, it must be run from inside `src/` (it imports `utils.py` and reads `config.yaml` directly).
 
 ## Configuration
 
@@ -78,6 +91,21 @@ data_path: ../HSI_Datasets/
 ```
 
 To reproduce a comparison across all three reduction methods on a given dataset, run `python run.py` three times, changing only `reduction_method` between runs. Outputs (model checkpoints, plots, and classification reports) are automatically tagged with the dataset, method, and target class, so results from different runs don't overwrite each other.
+
+### Reproducing the paper's results
+
+`config.yaml` ships with lighter defaults for quick experimentation. To reproduce the numbers reported in Table II of the paper, set:
+
+```yaml
+window_size: 9
+test_ratio: 0.2
+epochs: 100
+learning_rate: 0.001
+patience: 10
+num_components: 3
+```
+
+(`batch_size: 32` and `seed_value: 7` already match.) These are the settings used for the results in the paper; the smaller defaults in this repo are intended for faster local testing.
 
 ## Outputs
 
@@ -106,3 +134,22 @@ Python · TensorFlow / Keras · scikit-learn (PCA, t-SNE) · umap-learn · NumPy
 - Reduction parameters (number of components, window size) are fixed per run rather than tuned per dataset/method
 - Binary classification only (target vs. background); no multiclass extension
 - No standardized comparison against external state-of-the-art detectors (see paper for discussion)
+
+## Citation
+
+This work is not yet formally published. Until then, please cite it as:
+
+```bibtex
+@misc{ghorbanmeyabadi2026dimensionality,
+  title={Dimensionality Reduction based Convolutional Network for Hyperspectral Target Detection},
+  author={Ghorbanmeyabadi, Reza and Imani, Maryam and Ghassemian, Hassan},
+  year={2026},
+  note={Preprint}
+}
+```
+
+Once posted to arXiv, this will be updated with the arXiv identifier.
+
+## License
+
+MIT License — see [LICENSE](LICENSE).
