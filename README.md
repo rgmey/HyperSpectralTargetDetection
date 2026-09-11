@@ -2,7 +2,7 @@
 
 A lightweight hybrid 3D–2D convolutional neural network for binary target detection in hyperspectral imagery, evaluated across three unsupervised dimensionality reduction methods (PCA, t-SNE, UMAP) and four benchmark datasets.
 
-This repository implements the method described in *"Dimensionality Reduction based Convolutional Network for Hyperspectral Target Detection"* (Ghorbanmeyabadi, Imani, and Ghassemian).
+This repository implements the method described in *"Dimensionality Reduction based Convolutional Network for Hyperspectral Target Detection"* (Ghorbanmeyabadi, Imani, and Ghassemian), available on [Zenodo](https://doi.org/10.5281/zenodo.22705520).
 
 ## Overview
 
@@ -137,18 +137,21 @@ Python · TensorFlow / Keras · scikit-learn (PCA, t-SNE) · umap-learn · NumPy
 
 ## Citation
 
-This work is not yet formally published. Until then, please cite it as:
+If you use this code or method in your research, please cite:
 
 ```bibtex
 @misc{ghorbanmeyabadi2026dimensionality,
-  title={Dimensionality Reduction based Convolutional Network for Hyperspectral Target Detection},
-  author={Ghorbanmeyabadi, Reza and Imani, Maryam and Ghassemian, Hassan},
-  year={2026},
-  note={Preprint}
+  author       = {Ghorbanmeyabadi, Reza and Imani, Maryam and Ghassemian, Hassan},
+  title        = {Dimensionality Reduction based Convolutional Network for Hyperspectral Target Detection},
+  year         = {2026},
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.22705520},
+  url          = {https://doi.org/10.5281/zenodo.22705520}
 }
 ```
 
-Once posted to arXiv, this will be updated with the arXiv identifier.
+APA:
+> Ghorbanmeyabadi, R., Imani, M., & Ghassemian, H. (2026). *Dimensionality Reduction based Convolutional Network for Hyperspectral Target Detection*. Zenodo. https://doi.org/10.5281/zenodo.22705520
 
 ## License
 
